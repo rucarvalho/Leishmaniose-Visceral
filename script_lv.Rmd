@@ -1,0 +1,31 @@
+---
+title: "Leishmaniose visceral"
+author: "Rubens Carvalho"
+date: "09/05/2023"
+output: html_document
+---
+
+Pacotes utilizados
+```{r}
+library(tidyverse) # carregando pacote
+library(read.dbc) # carregando pacote
+
+options(scipen = 999) # Retirando notação científica
+
+```
+  
+
+Subindo as bases que iremos usar que foram baixadas do site do Datasus e unificando em uma base unica <https://datasus.saude.gov.br/transferencia-de-arquivos/>
+```{r}
+df2016 <- read.dbc("bases/LEIVBR16.dbc") # subindo base de notificação de 2016
+df2017 <- read.dbc("bases/LEIVBR17.dbc") # subindo base de notificação de 2017
+df2018 <- read.dbc("bases/LEIVBR18.dbc") # subindo base de notificação de 2018
+df2019 <- read.dbc("bases/LEIVBR19.dbc") # subindo base de notificação de 2019
+df2020 <- read.dbc("bases/LEIVBR20.dbc") # subindo base de notificação de 2020
+df2021 <- read.dbc("bases/LEIVBR21.dbc") # subindo base de notificação de 2021
+
+df16a21 <- rbind(df2016, df2017, df2018, df2019, df2020, df2021) # unificando as bases anuais 
+
+remove(df2016, df2017, df2018, df2019, df2020, df2021) # removendo as bases anuais e ficando só com a base unificada
+```
+
