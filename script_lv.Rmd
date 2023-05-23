@@ -1,7 +1,7 @@
 ---
 title: "Leishmaniose visceral"
 author: "Rubens Carvalho"
-date: "09/05/2023"
+date: "13/05/2023"
 output: html_document
 ---
 
@@ -9,6 +9,7 @@ Pacotes utilizados
 ```{r}
 library(tidyverse) # carregando pacote
 library(read.dbc) # carregando pacote
+library(readxl) # carregando pacote
 
 options(scipen = 999) # Retirando notação científica
 
@@ -27,5 +28,16 @@ df2021 <- read.dbc("bases/LEIVBR21.dbc") # subindo base de notificação de 2021
 df16a21 <- rbind(df2016, df2017, df2018, df2019, df2020, df2021) # unificando as bases anuais 
 
 remove(df2016, df2017, df2018, df2019, df2020, df2021) # removendo as bases anuais e ficando só com a base unificada
+```
+  
+Selecionando colunas
+```{r}
+df <- df16a21 %>% 
+  select(NU_ANO, SEM_NOT, SG_UF, NU_IDADE_N, CS_SEXO)
+
+str(df)
+
+remove(df16a21)
+
 ```
 
