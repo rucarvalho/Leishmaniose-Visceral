@@ -5,6 +5,6 @@ O projeto foi realizado no intuito de mostrar alguns dados públicos e algumas f
 
 Obs:  
 Na pasta bases estão as bases do SINAN utilizadas e um de/para de UF também utilizado;  
-Na pasta referências estão os documentos que auxiliam decodificar a base e algumas referências bibbliográficas sobre o assunto
+Na pasta referências estão os documentos que auxiliam decodificar a base e algumas referências bibbliográficas sobre o assunto.
 
 Pode ser visto o passo a passo no link:
