@@ -25,19 +25,205 @@ df2019 <- read.dbc("bases/LEIVBR19.dbc") # subindo base de notificação de 2019
 df2020 <- read.dbc("bases/LEIVBR20.dbc") # subindo base de notificação de 2020
 df2021 <- read.dbc("bases/LEIVBR21.dbc") # subindo base de notificação de 2021
 
-df16a21 <- rbind(df2016, df2017, df2018, df2019, df2020, df2021) # unificando as bases anuais 
+df_unido <- rbind(df2016, df2017, df2018, df2019, df2020, df2021) # unificando as bases anuais 
 
 remove(df2016, df2017, df2018, df2019, df2020, df2021) # removendo as bases anuais e ficando só com a base unificada
 ```
   
 Selecionando colunas
 ```{r}
-df <- df16a21 %>% 
+df <- df_unido %>% 
   select(NU_ANO, SEM_NOT, SG_UF, NU_IDADE_N, CS_SEXO)
 
 str(df)
 
-remove(df16a21)
+remove(df_unido)
+```
+  
+Mexendo no campo de semana epidemiológica
+```{r}
+# Transformando o campo SEM_NOT em tipo character
+df$SEM_NOT <- as.character(df$SEM_NOT)
 
+# Pegando os 2 ultimos digitos
+df["semana_epi"] <- substr(df$SEM_NOT,nchar(df$SEM_NOT)-1,nchar(df$SEM_NOT))
+```
+  
+Transformando campo idade e criando o campo de faixa etária
+```{r}
+# separando a unidade de medida
+df["medida_idade"] <- substr(df$NU_IDADE_N,1,1)
+
+# classificando a unidade de medida, esse "de/para" esta no manual
+df["medida_idade"] <- ifelse(df$medida_idade == "1","Horas", # se igual a 1 são horas
+                      ifelse(df$medida_idade == "2","Dias", # se igual a 2 são dias
+                      ifelse(df$medida_idade == "3","Meses", # se igual a 3 são meses
+                      ifelse(df$medida_idade == "4","Anos","Sem class.")))) # se igual a 4 são anos e se não for nenhum deles é sem classificação
+
+# Separando o valor da idade
+df["valor_idade"] <- as.numeric(substr(df$NU_IDADE_N,2,4)) # transformando em número (estava como caracter) os ultimos 3 digitos
+
+# campo de idade em anos
+df["idade_anos"] <- ifelse(df$medida_idade == "Horas", df$valor_idade/8760, # 1 ano tem 8.760 horas
+                    ifelse(df$medida_idade == "Dias", df$valor_idade/365, # 1 ano tem 365 dias
+                    ifelse(df$medida_idade == "Meses", df$valor_idade/12, # 1 ano tem 12 meses
+                    ifelse(df$medida_idade == "Anos", df$valor_idade, # se ja esta em anos, não precisamos transformar
+                    ifelse(df$medida_idade == "Sem class", NA,"Erro"))))) # e se não temos uma classe, deixamos vazio (NA), e o erro é para caso nenhuma condição seja atendida
+
+# Criando o campo de faixa etária, de 10 em 10 anos, até 100 anos, tudo maior ou igual a 100 anos foi agrupado
+df["faixa_etaria"] <- ifelse(df$idade_anos >= 0 & df$idade_anos < 10,"01. 0 a 9 anos",
+                      ifelse(df$idade_anos < 20,"02. 10 a 19 anos",
+                      ifelse(df$idade_anos < 30,"03. 20 a 29 anos",
+                      ifelse(df$idade_anos < 40,"04. 30 a 39 anos",
+                      ifelse(df$idade_anos < 50,"05. 40 a 49 anos",
+                      ifelse(df$idade_anos < 60,"06. 50 a 59 anos",
+                      ifelse(df$idade_anos < 70,"07. 60 a 69 anos",
+                      ifelse(df$idade_anos < 80,"08. 70 a 79 anos",
+                      ifelse(df$idade_anos < 90,"09. 80 a 89 anos",
+                      ifelse(df$idade_anos < 100,"10. 90 a 99 anos",
+                             "11.100 anos e mais"))))))))))
+
+```
+  
+Subindo base de/para de UF e unindo com a base do SINAN
+```{r}
+# subindo base de UF e cruzando com a base de dados que temos
+
+df_uf <- read_excel("bases/cod_uf.xlsx") # Subindo base de UFs, ela esta no formato xlsx
+
+df <- left_join(df, df_uf, by = c("SG_UF" = "COD_UF")) # Unindo as bases (casos + UF)
+```
+  
+Gráfico de barras do volume de casos por ano
+```{r}
+
+df %>% 
+  group_by(NU_ANO) %>% # agrupando casos por ano
+  summarise(vol = n()) %>% # contando quantos casos (linhas) por grupo
+  ggplot(aes(x = NU_ANO, y = vol)) + # mapeando eixo x como ano e y como a contagem
+  geom_col(fill = "darkgreen") + # mudando a cor da barra
+  geom_label(aes(label = vol)) + # colocando rotulo nas colunas
+  labs(
+    x = "Ano", 
+    y = "Nº",
+    title = "Nº de casos por ano de notificação",
+    subtitle = "SINAN, 2016 a 2021"
+  ) # colocando o nome dos eixos e um titulo no gráfico
+```
+  
+Gráfico de linhas por semana epidemiológica e separado por ano
+```{r}
+# O gráfico de linhas pede no eixo X uma variável numérica, fazemos essa transformação aqui
+df["sem"] <- as.numeric(df$semana_epi) 
+
+df %>% 
+  group_by(NU_ANO, sem) %>% 
+  summarise(vol = n()) %>% 
+  ggplot(aes(x = sem, y = vol)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = seq(1,53,3))+ # ajustando escala x para ser de 1 a 53, de 1 em 1
+  facet_wrap(vars(NU_ANO))+ # comando pra criar um gráfico por ano
+  labs(
+    x = "Semana epidemiológica", 
+    y = "Nº",
+    title = "Nº de casos por semana epidemiológica e ano"
+  ) # colocando o nome dos eixos e um titulo no gráfico
+```
+  
+Construção da pirâmide etária
+```{r}
+#Tabela resumo para a construção
+piramide2 <- df %>% 
+  filter(CS_SEXO != "I") %>% 
+  group_by(faixa_etaria, CS_SEXO) %>% 
+  summarise(vol = n())
+
+abs_virgula <- function (x) {
+  format(abs(x), big.mark = ".", decimal.mark = ",")
+} # função para manter o "." na escala 
+
+piramide2 %>%
+  mutate(sexo = factor(CS_SEXO, levels = c("M", "F"))) %>%
+  ggplot(mapping = aes(x = faixa_etaria,
+                       y = ifelse(sexo == "F",  yes = vol, no = -vol), fill = sexo)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = abs_virgula, limits = (max(piramide2$vol))* c(-1,1)) +
+  labs(y = "População", x = "Faixa etária (em anos)", title = "Pirâmide etária das notificações") +
+  scale_fill_brewer(palette = "Set1", direction = -1) + # colocando as cores 
+  theme(legend.position = "bottom") +
+  coord_flip() # invertendo escala x e y
+
+df["idade_anos"] <- as.numeric(df$idade_anos)
+
+mean(df$idade_anos, na.rm = TRUE) # média de idade
+median(df$idade_anos, na.rm = TRUE) # mediana de idade
+prop.table(table(df$CS_SEXO)) # proporção por sexo
+```
+  
+Tabela de frequência geral
+```{r}
+tab_sexo_faixa <- df %>% 
+  filter(CS_SEXO != "I") %>% # retirando notitificações sem sexo identificado 
+  group_by(CS_SEXO, faixa_etaria) %>% 
+  summarise(vol = n()) %>% 
+  ungroup() %>% 
+  spread(CS_SEXO, vol) %>% # tranformado a coluna de sexo em duas colunas, M e F
+  mutate(dif_sexo = M - F) # criando a coluna com a diferença
+```
+  
+Tabela por UF
+```{r}
+tab_UF <- df %>% 
+  group_by(UF) %>% 
+  summarise(vol = n()) %>% 
+  arrange(desc(vol)) # Ordenando de forma decrescente
+
+# cruzando a base de casos com a de vidas e prop de zona rural.
+tab_UF <- left_join(tab_UF, df_uf, by = c("UF" = "UF"))
+
+# Criando o indicador de incidencia por 100.000 hab
+tab_UF["incidencia"] <- tab_UF$vol / tab_UF$total_2015 * 100000
+```
+  
+Gráfico de dispersão e calculando correlação
+```{r}
+tab_UF %>% 
+  filter(!is.na(UF)) %>% 
+  ggplot() +
+  geom_point(mapping = aes(x = prop_rural_2015, y = vol), color = "red") +
+  geom_label(mapping = aes(x = prop_rural_2015, y = vol, label = UF),nudge_x = 1.5, nudge_y = -2) +
+  labs(y = "Nº", x = "Prop. (%) zona rural", title = "Nº de notificações por prop.(%) de háb. em zona rural")
+
+# Excluindo os dados com NA
+tab_corr <- tab_UF %>% 
+  filter(!is.na(UF))
+
+# Calculando correlão
+cor(tab_corr$prop_rural_2015, tab_corr$vol)
+```
+  
+Gráfico de dispersão com a taxa de incidência e correlação
+```{r}
+# Top 5 maiores incidências
+
+tab_corr %>% 
+  arrange(desc(incidencia)) %>% 
+  head()
+
+# Incidencia x prop população em zona rural
+
+ggplot(tab_corr) +
+  geom_point(mapping = aes(x = prop_rural_2015, y = incidencia), color = "red") +
+  geom_label(mapping = aes(x = prop_rural_2015, y = incidencia, label = UF),nudge_x = 1.5, nudge_y = -2) +
+  labs(y = "/100.000 hab.", x = "Prop. (%) zona rural", title = "Tx. de Incidência por prop.(%) de háb. em zona rural")
+
+cor(tab_corr$prop_rural_2015, tab_corr$incidencia) # Calculando correlação
+
+# Correlação sem Tocantins
+tab_sem_TO <- tab_corr %>% 
+  filter(UF != "Tocantins") # Retirando a UF de Tocantins
+
+cor(tab_sem_TO$prop_rural_2015, tab_sem_TO$incidencia) # Calculando correlação
 ```
 
