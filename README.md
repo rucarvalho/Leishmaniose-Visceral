@@ -7,4 +7,4 @@ Obs:
 Na pasta bases estão as bases do SINAN utilizadas e um de/para de UF também utilizado;  
 Na pasta referências estão os documentos que auxiliam decodificar a base e algumas referências bibbliográficas sobre o assunto.
 
-Pode ser visto o passo a passo no link:
+Pode ser visto o passo a passo no link: https://medium.com/@rubenscsilveira/manipulação-de-dados-com-r-bdd51738be77
